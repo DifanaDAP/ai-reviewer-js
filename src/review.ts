@@ -19,6 +19,8 @@ import { type Prompts } from './prompts'
 import { getTokenCount } from './tokenizer'
 import { connectToDatabase, closeDatabaseConnection } from './db'
 import Review from './db/models/review'
+import { runAnalyzers, formatAnalyzerResults, countFeedbacksByPriority } from './analyzer-runner'
+import { Priority } from './models/feedback'
 
 // eslint-disable-next-line camelcase
 const context = github_context
@@ -451,6 +453,28 @@ ${filename}: ${summary}
   )
   inputs.shortSummary = summarizeShortResponse
 
+  // Run Pattern-Based Analyzers
+  const githubFiles = filterSelectedFiles.map(f => ({
+    filename: f.filename,
+    status: f.status ?? 'modified',
+    additions: f.additions ?? 0,
+    deletions: f.deletions ?? 0,
+    changes: f.changes ?? 0,
+    patch: f.patch
+  }))
+
+  const analyzerFeedbacks = await runAnalyzers(
+    context.payload.pull_request.number,
+    inputs.title,
+    inputs.description,
+    `${repo.owner}/${repo.repo}`,
+    githubFiles,
+    targetBranchDiff.data.diff_url ?? ''
+  )
+
+  const analyzerResults = formatAnalyzerResults(analyzerFeedbacks)
+  const feedbackCounts = countFeedbacksByPriority(analyzerFeedbacks)
+
   // Automated Checks
   const prTitle = inputs.title
   const prDescription = inputs.description
@@ -462,6 +486,9 @@ ${filename}: ${summary}
   const testFiles = filesAndChanges.filter(([filename]) => testFilePattern.test(filename))
   const hasTestChanges = testFiles.length > 0
 
+  const hasHighPriorityIssues = feedbackCounts[Priority.HIGH] > 0
+  const hasMediumPriorityIssues = feedbackCounts[Priority.MEDIUM] > 0
+
   let automatedChecks = `
 ### Automated Checks
 | Check | Status | Details |
@@ -469,6 +496,10 @@ ${filename}: ${summary}
 | **PR Title** | ${isTitleValid ? '✅' : '❌'} | ${isTitleValid ? 'Valid format' : 'Does not match Conventional Commits'} |
 | **Description** | ${isDescriptionValid ? '✅' : '❌'} | ${isDescriptionValid ? 'Sufficient detail' : 'Too short'} |
 | **Test Coverage** | ${hasTestChanges ? '✅' : '⚠️'} | ${hasTestChanges ? `Modified ${testFiles.length} test files` : 'No test files modified'} |
+| **Security** | ${hasHighPriorityIssues ? '🔴' : '✅'} | ${feedbackCounts[Priority.HIGH]} high priority issues |
+| **Pattern Analysis** | ${hasMediumPriorityIssues ? '🟡' : '✅'} | ${analyzerFeedbacks.length} total issues found |
+
+${analyzerResults}
 `
 
   let summarizeComment = `${summarizeFinalResponse}
@@ -793,7 +824,8 @@ ${reviewsSkipped.length > 0
         summary: inputs.rawSummary,
         securityIssues: allSecurityIssues,
         performanceIssues: allPerformanceIssues,
-        codeStyleIssues: allCodeStyleIssues
+        codeStyleIssues: allCodeStyleIssues,
+        feedbacks: analyzerFeedbacks
       })
       await reviewDoc.save()
       info('Review saved to MongoDB')

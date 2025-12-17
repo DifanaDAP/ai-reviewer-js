@@ -9,10 +9,18 @@ This is an AI-based code reviewer and summarizer for GitHub pull requests using 
 ## Features
 
 - **PR Summarization**: Generates a summary and release notes of the changes in the pull request.
+- **Modular Analyzers**: Includes 6 specialized analyzers for comprehensive review:
+  - 🔍 **Static Analyzer**: Checks for code style issues, naming conventions, and anti-patterns.
+  - 🛡️ **Risk Analyzer**: Detects security vulnerabilities (SQL injection, XSS, secrets) and performance issues.
+  - 📋 **Structure Analyzer**: Validates PR title (Conventional Commits), description, and size.
+  - 🧪 **Test Analyzer**: Checks for missing tests, skipped tests, and test isolation.
+  - 📝 **Doc Analyzer**: Verifies documentation updates and JSDoc presence.
+  - 📏 **Convention Analyzer**: Enforces file naming and coding conventions.
+- **Pattern-Based Analysis**: Fast, deterministic feedback using regex patterns before AI analysis.
 - **Line-by-line code change suggestions**: Reviews changes line by line and provides code suggestions.
 - **Continuous, incremental reviews**: Reviews are performed on each commit within a pull request.
 - **Cost-effective**: Incremental reviews save on tokens and reduce noise by tracking changed files.
-- **"Light" model for summary**: Uses lighter models (e.g. `gpt-3.5-turbo`) for summaries and "heavy" models (e.g. `gpt-4`) for complex reviews.
+- **"Light" model for summary**: Uses lighter models (for summaries) and "heavy" models for complex reviews.
 - **Chat with bot**: Supports conversation with the bot in the context of lines of code or entire files.
 - **Smart review skipping**: Skips in-depth review for simple changes (e.g. typo fixes) by default.
 - **Customizable prompts**: Tailor the `system_message`, `summarize`, and `summarize_release_notes` prompts.
@@ -72,6 +80,46 @@ See [action.yml](./action.yml) for all available options.
 - `openai_light_model`: Model for summaries (default: `gpt-3.5-turbo`)
 - `openai_heavy_model`: Model for code reviews (default: `gpt-4`)
 - `path_filters`: Glob patterns to exclude files from review (see action.yml for defaults)
+
+### Advanced Configuration (`.ai-reviewer.yml`)
+
+You can customize the analyzers by adding a `.ai-reviewer.yml` file to the root of your repository:
+
+```yaml
+# Enable/disable specific checks
+enabled: true
+
+# PR Structure rules
+pr_structure:
+  title_pattern: "^(feat|fix|docs|style|refactor|test|chore)..."
+  require_description: true
+
+# PR Size limits
+pr_size:
+  max_files: 20
+  max_lines_added: 500
+
+# File naming conventions
+naming:
+  typescript:
+    class: "^[A-Z][a-zA-Z0-9]*$"
+    function: "^[a-z][a-zA-Z0-9]*$"
+
+# Custom ignore patterns
+ignore:
+  - "*.lock"
+  - "dist/*"
+```
+
+### MongoDB Integration (v2)
+
+To enable persistent storage of reviews and feedback, configure a MongoDB connection:
+
+1. Set `mongodb_uri` input in your workflow.
+2. The action will automatically store:
+   - PR Metrics (files changed, lines added/deleted)
+   - Detailed Analyzer Feedbacks (security, style, performance)
+   - Review Summaries
 
 ## Conversation with the Bot
 
