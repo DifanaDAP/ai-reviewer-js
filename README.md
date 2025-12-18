@@ -152,3 +152,37 @@ on:
 
 - **Data Usage**: Your code (files, diff, PR title/description) will be sent to OpenAI's servers.
 - **Independence**: This action is not affiliated with OpenAI.
+
+## Local Development & Verification
+
+To run and verify the codebase locally (especially for Windows users):
+
+1.  **Environment Setup**:
+    Copy `.env.example` to `.env` and fill in your credentials:
+    ```bash
+    cp .env.example .env
+    ```
+    *   `MONGODB_URI`: Connection string for your local or remote MongoDB.
+    *   `OPENAI_API_KEY`: Your OpenAI API Key.
+
+2.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+
+3.  **Verify MongoDB Connection**:
+    Run the included test script to verify your MongoDB connection and read/write permissions:
+    ```bash
+    npm run test:connection
+    ```
+    This script will:
+    - Connect to the database using `MONGODB_URI`.
+    - Create a dummy review document.
+    - Read the document back.
+    - Clean up (delete) the document.
+
+4.  **Run Tests**:
+    ```bash
+    npm test
+    ```
+
