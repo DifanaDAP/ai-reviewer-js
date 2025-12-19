@@ -23,6 +23,7 @@ export class Options {
   apiBaseUrl: string
   language: string
   mongodbUri: string
+  botIcon: string
 
   constructor(
     debug: boolean,
@@ -42,7 +43,8 @@ export class Options {
     githubConcurrencyLimit = '6',
     apiBaseUrl = 'https://api.openai.com/v1',
     language = 'en-US',
-    mongodbUri = ''
+    mongodbUri = '',
+    botIcon = ''
   ) {
     this.debug = debug
     this.disableReview = disableReview
@@ -64,6 +66,7 @@ export class Options {
     this.apiBaseUrl = apiBaseUrl
     this.language = language
     this.mongodbUri = mongodbUri
+    this.botIcon = botIcon
   }
 
   // print all options using core.info
@@ -87,6 +90,7 @@ export class Options {
     info(`review_token_limits: ${this.heavyTokenLimits.string()}`)
     info(`api_base_url: ${this.apiBaseUrl}`)
     info(`language: ${this.language}`)
+    info(`bot_icon: ${this.botIcon}`)
   }
 
   checkPath(path: string): boolean {

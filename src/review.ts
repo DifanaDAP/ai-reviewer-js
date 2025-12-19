@@ -26,7 +26,7 @@ import { Priority } from './models/feedback'
 const context = github_context
 const repo = context.repo
 
-const ignoreKeyword = '@coderabbitai: ignore'
+const ignoreKeyword = '@ai-pr-reviewer: ignore'
 
 export const codeReview = async (
   lightBot: Bot,
@@ -35,6 +35,9 @@ export const codeReview = async (
   prompts: Prompts
 ): Promise<void> => {
   const commenter: Commenter = new Commenter()
+  const allSecurityIssues: string[] = []
+  const allPerformanceIssues: string[] = []
+  const allCodeStyleIssues: string[] = []
 
   if (options.mongodbUri) {
     await connectToDatabase(options.mongodbUri)
@@ -433,7 +436,7 @@ ${filename}: ${summary}
     if (releaseNotesResponse === '') {
       info('release notes: nothing obtained from openai')
     } else {
-      let message = '### Summary by CodeRabbit\n\n'
+      let message = '### Summary by ai-pr-reviewer\n\n'
       message += releaseNotesResponse
       try {
         await commenter.updateDescription(
@@ -511,18 +514,7 @@ ${SHORT_SUMMARY_START_TAG}
 ${inputs.shortSummary}
 ${SHORT_SUMMARY_END_TAG}
 
----
-
-<details>
-<summary>Uplevel your code reviews with CodeRabbit Pro</summary>
-
-### CodeRabbit Pro
-
-If you like this project, please support us by purchasing the [Pro version](https://coderabbit.ai). The Pro version has advanced context, superior noise reduction and several proprietary improvements compared to the open source version. Moreover, CodeRabbit Pro is free for open source projects.
-
-</details>
 `
-
   statusMsg += `
 ${skippedFiles.length > 0
       ? `
@@ -572,9 +564,7 @@ ${summariesFailed.length > 0
     const reviewsFailed: string[] = []
     let lgtmCount = 0
     let reviewCount = 0
-    const allSecurityIssues: string[] = []
-    const allPerformanceIssues: string[] = []
-    const allCodeStyleIssues: string[] = []
+
 
     const doReview = async (
       filename: string,
@@ -784,16 +774,16 @@ ${reviewsSkipped.length > 0
 <details>
 <summary>Tips</summary>
 
-### Chat with <img src="https://avatars.githubusercontent.com/in/347564?s=41&u=fad245b8b4c7254fe63dd4dcd4d662ace122757e&v=4" alt="Image description" width="20" height="20">  CodeRabbit Bot (\`@coderabbitai\`)
+### Chat with ${options.botIcon} ai-pr-reviewer Bot (\`@ai-pr-reviewer\`)
 - Reply on review comments left by this bot to ask follow-up questions. A review comment is a comment on a diff or a file.
-- Invite the bot into a review comment chain by tagging \`@coderabbitai\` in a reply.
+- Invite the bot into a review comment chain by tagging \`@ai-pr-reviewer\` in a reply.
 
 ### Code suggestions
 - The bot may make code suggestions, but please review them carefully before committing since the line number ranges may be misaligned. 
 - You can edit the comment made by the bot and manually tweak the suggestion if it is slightly off.
 
 ### Pausing incremental reviews
-- Add \`@coderabbitai: ignore\` anywhere in the PR description to pause further reviews from the bot.
+- Add \`@ai-pr-reviewer: ignore\` anywhere in the PR description to pause further reviews from the bot.
 
 </details>
 `
@@ -811,9 +801,7 @@ ${reviewsSkipped.length > 0
     )
   }
 
-  // post the final summary comment
-  await commenter.comment(`${summarizeComment}`, SUMMARIZE_TAG, 'replace')
-
+  let dbStatus = ''
   if (options.mongodbUri) {
     try {
       const reviewDoc = new Review({
@@ -829,11 +817,16 @@ ${reviewsSkipped.length > 0
       })
       await reviewDoc.save()
       info('Review saved to MongoDB')
+      dbStatus = '\n\n✅ **Review saved to MongoDB**'
       await closeDatabaseConnection()
     } catch (e: any) {
       warning(`Failed to save review to MongoDB: ${e.message}`)
+      dbStatus = `\n\n⚠️ **Failed to save review to MongoDB**: ${e.message}`
     }
   }
+
+  // post the final summary comment
+  await commenter.comment(`${summarizeComment}${dbStatus}`, SUMMARIZE_TAG, 'replace')
 }
 
 const splitPatch = (patch: string | null | undefined): string[] => {

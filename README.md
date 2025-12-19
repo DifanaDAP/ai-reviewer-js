@@ -113,27 +113,48 @@ ignore:
 
 ### MongoDB Integration (v2)
 
-To enable persistent storage of reviews and feedback, configure a MongoDB connection:
+To enable persistent storage of reviews and feedback, configure a MongoDB connection. This allows you to track PR history and feedback over time.
 
-1. Set `mongodb_uri` input in your workflow.
-2. The action will automatically store:
-   - PR Metrics (files changed, lines added/deleted)
-   - Detailed Analyzer Feedbacks (security, style, performance)
-   - Review Summaries
+#### 1. Setup a MongoDB Instance
+You can use:
+*   **Local MongoDB**: If running on your own server.
+*   **MongoDB Atlas**: Free cloud tier is perfect for this. Get a connection string like `mongodb+srv://<user>:<password>@cluster0.mongodb.net/ai_reviews`.
+
+#### 2. Add Secret to GitHub
+1. Go to your repository **Settings** > **Secrets and variables** > **Actions**.
+2. Create a new repository secret named `MONGODB_URI`.
+3. Paste your connection string.
+
+#### 3. Update Workflow YAML
+Add the `mongodb_uri` input to your workflow file:
+
+```yaml
+      - uses: DifanaDAP/ai-reviewer-js@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          mongodb_uri: ${{ secrets.MONGODB_URI }}
+```
+
+#### 4. Verification
+Once configured, the PR comment will include a status indicator:
+- ✅ **Review saved to MongoDB**: Confirms successful storage.
+- ⚠️ **Failed to save review to MongoDB**: Shows the error if storage failed.
 
 ## Conversation with the Bot
 
 You can reply to a review comment made by this action and get a response based on the diff context.
 Tag the bot in a comment to invite it:
 
-> @coderabbitai Please generate a test plan for this file.
+> @ai-pr-reviewer Please generate a test plan for this file.
 
 ## Ignoring PRs
 
 To ignore a specific PR, add the following text to the PR description:
 
 ```text
-@coderabbitai: ignore
+@ai-pr-reviewer: ignore
 ```
 
 ## FAQs

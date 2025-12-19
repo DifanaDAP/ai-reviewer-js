@@ -30,7 +30,8 @@ async function run(): Promise<void> {
     getInput('github_concurrency_limit'),
     getInput('openai_base_url'),
     getInput('language'),
-    getInput('mongodb_uri')
+    getInput('mongodb_uri'),
+    getInput('bot_icon')
   )
 
   // print options
