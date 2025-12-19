@@ -56,7 +56,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: DifanaDAP/ai-reviewer-js@latest
+      - uses: DifanaDAP/ai-reviewer-js@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -129,7 +129,7 @@ You can use:
 Add the `mongodb_uri` input to your workflow file:
 
 ```yaml
-      - uses: DifanaDAP/ai-reviewer-js@latest
+      - uses: DifanaDAP/ai-reviewer-js@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
