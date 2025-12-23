@@ -41,6 +41,8 @@ export const codeReview = async (
 
   if (options.mongodbUri) {
     await connectToDatabase(options.mongodbUri)
+  } else {
+    info('ℹ️ MongoDB not configured - review history will not be saved')
   }
 
   const openaiConcurrencyLimit = pLimit(options.openaiConcurrencyLimit)

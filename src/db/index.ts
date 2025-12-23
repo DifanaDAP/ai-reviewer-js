@@ -1,15 +1,23 @@
 import mongoose from 'mongoose'
 import {info, warning} from '@actions/core'
 
-export const connectToDatabase = async (uri: string): Promise<void> => {
+export let isMongoConnected = false
+
+export const connectToDatabase = async (uri: string): Promise<boolean> => {
   try {
     if (mongoose.connection.readyState >= 1) {
-      return
+      info('MongoDB already connected')
+      isMongoConnected = true
+      return true
     }
     await mongoose.connect(uri)
-    info('Successfully connected to MongoDB')
+    info('✅ Successfully connected to MongoDB')
+    isMongoConnected = true
+    return true
   } catch (err) {
-    warning(`Failed to connect to MongoDB: ${err}`)
+    warning(`❌ MongoDB NOT CONNECTED: ${err}`)
+    isMongoConnected = false
+    return false
   }
 }
 
