@@ -124,6 +124,5 @@ tags.lock
 .secrets
 bin/act
 
-# Ignore built js files
-dist
+
 
