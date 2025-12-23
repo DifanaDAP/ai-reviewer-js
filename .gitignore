@@ -123,3 +123,7 @@ tags.lock
 .env
 .secrets
 bin/act
+
+# Ignore built js files
+dist
+
