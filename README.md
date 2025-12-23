@@ -1,40 +1,48 @@
-# AI-based PR Reviewer & Summarizer
+# 🤖 AI PR Reviewer & Summarizer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Overview
+AI-based code reviewer and summarizer for GitHub pull requests using OpenAI's
+GPT models. Includes pattern-based analyzers and MongoDB integration for review
+history.
 
-This is an AI-based code reviewer and summarizer for GitHub pull requests using OpenAI's `gpt-3.5-turbo` and `gpt-4` models. It is designed to be used as a GitHub Action and can be configured to run on every pull request and review comments.
+## ✨ Features
 
-## Features
+### Core Review Capabilities
 
-- **PR Summarization**: Generates a summary and release notes of the changes in the pull request.
-- **Modular Analyzers**: Includes 6 specialized analyzers for comprehensive review:
-  - 🔍 **Static Analyzer**: Checks for code style issues, naming conventions, and anti-patterns.
-  - 🛡️ **Risk Analyzer**: Detects security vulnerabilities (SQL injection, XSS, secrets) and performance issues.
-  - 📋 **Structure Analyzer**: Validates PR title (Conventional Commits), description, and size.
-  - 🧪 **Test Analyzer**: Checks for missing tests, skipped tests, and test isolation.
-  - 📝 **Doc Analyzer**: Verifies documentation updates and JSDoc presence.
-  - 📏 **Convention Analyzer**: Enforces file naming and coding conventions.
-- **Pattern-Based Analysis**: Fast, deterministic feedback using regex patterns before AI analysis.
-- **Line-by-line code change suggestions**: Reviews changes line by line and provides code suggestions.
-- **Continuous, incremental reviews**: Reviews are performed on each commit within a pull request.
-- **Cost-effective**: Incremental reviews save on tokens and reduce noise by tracking changed files.
-- **"Light" model for summary**: Uses lighter models (for summaries) and "heavy" models for complex reviews.
-- **Chat with bot**: Supports conversation with the bot in the context of lines of code or entire files.
-- **Smart review skipping**: Skips in-depth review for simple changes (e.g. typo fixes) by default.
-- **Customizable prompts**: Tailor the `system_message`, `summarize`, and `summarize_release_notes` prompts.
+- **PR Summarization** - Auto-generates summary and release notes for every PR
+- **Line-by-line Code Review** - AI provides specific suggestions on code
+  changes
+- **Incremental Reviews** - Reviews are performed on each commit, saving tokens
+  and reducing noise
+- **Chat with Bot** - Reply to bot comments to ask follow-up questions
 
-## Setup
+### 🔍 Modular Analyzers (v2)
 
-To use this tool, add the provided YAML file to your repository and configure the required environment variables (`GITHUB_TOKEN` and `OPENAI_API_KEY`).
+Six specialized pattern-based analyzers provide fast, deterministic feedback:
 
-### Install instructions
+| Analyzer                   | Description                                                                |
+| -------------------------- | -------------------------------------------------------------------------- |
+| 🔍 **Static Analyzer**     | Code style, naming conventions, anti-patterns                              |
+| 🛡️ **Risk Analyzer**       | Security vulnerabilities (SQL injection, XSS, secrets), performance issues |
+| 📋 **Structure Analyzer**  | PR title (Conventional Commits), description, and size validation          |
+| 🧪 **Test Analyzer**       | Missing tests, skipped tests, test isolation                               |
+| 📝 **Doc Analyzer**        | Documentation updates, JSDoc presence                                      |
+| 📏 **Convention Analyzer** | File naming and coding conventions                                         |
 
-Add the below file to your repository at `.github/workflows/ai-pr-reviewer.yml`
+### 💾 MongoDB Integration
+
+Store review history for tracking and analytics. See
+[MongoDB Setup](#mongodb-integration-v2).
+
+---
+
+## 🚀 Quick Start
+
+Add this file to your repository at `.github/workflows/ai-pr-reviewer.yml`:
 
 ```yaml
-name: Code Review
+name: AI PR Review
 
 permissions:
   contents: read
@@ -66,144 +74,199 @@ jobs:
           review_comment_lgtm: false
 ```
 
-#### Environment variables
+### Required Secrets
 
-- `GITHUB_TOKEN`: Automatically provided by GitHub Actions. Used to add comments to the PR.
-- `OPENAI_API_KEY`: Required for OpenAI API authentication. Get one [here](https://platform.openai.com/account/api-keys) and add it to your GitHub Action secrets.
-- `OPENAI_API_ORG`: (Optional) Specify your OpenAI organization ID if needed.
+| Secret           | Description                                  | Required    |
+| ---------------- | -------------------------------------------- | ----------- |
+| `OPENAI_API_KEY` | OpenAI API key for GPT models                | ✅ Yes      |
+| `GITHUB_TOKEN`   | Automatically provided by GitHub Actions     | ✅ Auto     |
+| `MONGODB_URI`    | MongoDB connection string for review storage | ❌ Optional |
 
-### Configuration
+---
 
-See [action.yml](./action.yml) for all available options.
+## ⚙️ Configuration
 
-**Common Configurations:**
-- `openai_light_model`: Model for summaries (default: `gpt-3.5-turbo`)
-- `openai_heavy_model`: Model for code reviews (default: `gpt-4`)
-- `path_filters`: Glob patterns to exclude files from review (see action.yml for defaults)
+All options can be configured in your workflow file. See
+[action.yml](./action.yml) for full list.
 
-### Advanced Configuration (`.ai-reviewer.yml`)
-
-You can customize the analyzers by adding a `.ai-reviewer.yml` file to the root of your repository:
+### Common Options
 
 ```yaml
-# Enable/disable specific checks
+with:
+  # Models
+  openai_light_model: 'gpt-3.5-turbo' # For summaries
+  openai_heavy_model: 'gpt-4' # For code reviews
+
+  # Behavior
+  review_simple_changes: false # Skip trivial changes
+  review_comment_lgtm: false # Don't comment on good code
+  disable_review: false # Set true for summary only
+  disable_release_notes: false # Set true to skip release notes
+
+  # Limits
+  max_files: 150
+  openai_timeout_ms: 360000
+```
+
+### Advanced: Custom Analyzer Config (`.ai-reviewer.yml`)
+
+Create this file in your repo root to customize analyzers:
+
+```yaml
 enabled: true
 
-# PR Structure rules
 pr_structure:
-  title_pattern: "^(feat|fix|docs|style|refactor|test|chore)..."
+  title_pattern: '^(feat|fix|docs|style|refactor|test|chore)...'
   require_description: true
 
-# PR Size limits
 pr_size:
   max_files: 20
   max_lines_added: 500
 
-# File naming conventions
 naming:
   typescript:
-    class: "^[A-Z][a-zA-Z0-9]*$"
-    function: "^[a-z][a-zA-Z0-9]*$"
+    class: '^[A-Z][a-zA-Z0-9]*$'
+    function: '^[a-z][a-zA-Z0-9]*$'
 
-# Custom ignore patterns
 ignore:
-  - "*.lock"
-  - "dist/*"
+  - '*.lock'
+  - 'dist/*'
 ```
 
-### MongoDB Integration (v2)
+---
 
-To enable persistent storage of reviews and feedback, configure a MongoDB connection. This allows you to track PR history and feedback over time.
+## 💾 MongoDB Integration (v2)
 
-#### 1. Setup a MongoDB Instance
-You can use:
-*   **Local MongoDB**: If running on your own server.
-*   **MongoDB Atlas**: Free cloud tier is perfect for this. Get a connection string like `mongodb+srv://<user>:<password>@cluster0.mongodb.net/ai_reviews`.
+Store reviews persistently for tracking and analytics.
 
-#### 2. Add Secret to GitHub
-1. Go to your repository **Settings** > **Secrets and variables** > **Actions**.
-2. Create a new repository secret named `MONGODB_URI`.
-3. Paste your connection string.
+### Setup
 
-#### 3. Update Workflow YAML
-Add the `mongodb_uri` input to your workflow file:
+1. **Get MongoDB URI** - Use [MongoDB Atlas](https://www.mongodb.com/atlas)
+   (free tier works great) or local MongoDB
 
-```yaml
-      - uses: DifanaDAP/ai-reviewer-js@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        with:
-          mongodb_uri: ${{ secrets.MONGODB_URI }}
+2. **Add Secret** - Go to repo Settings → Secrets → Actions → New secret:
+
+   - Name: `MONGODB_URI`
+   - Value: `mongodb+srv://<user>:<password>@cluster.mongodb.net/ai_reviews`
+
+3. **Update Workflow**:
+
+   ```yaml
+   with:
+     mongodb_uri: ${{ secrets.MONGODB_URI }}
+   ```
+
+4. **Verification** - Each PR comment will show:
+   - ✅ **Review saved to MongoDB** - Success
+   - ⚠️ **Failed to save review** - Check connection string
+
+---
+
+## 💬 Interacting with the Bot
+
+### Chat with the Bot
+
+Reply to any review comment and tag the bot:
+
+```
+@ai-pr-reviewer Please explain this suggestion in more detail.
 ```
 
-#### 4. Verification
-Once configured, the PR comment will include a status indicator:
-- ✅ **Review saved to MongoDB**: Confirms successful storage.
-- ⚠️ **Failed to save review to MongoDB**: Shows the error if storage failed.
+### Ignore a PR
 
-## Conversation with the Bot
+Add this anywhere in your PR description to skip review:
 
-You can reply to a review comment made by this action and get a response based on the diff context.
-Tag the bot in a comment to invite it:
-
-> @ai-pr-reviewer Please generate a test plan for this file.
-
-## Ignoring PRs
-
-To ignore a specific PR, add the following text to the PR description:
-
-```text
+```
 @ai-pr-reviewer: ignore
 ```
 
-## FAQs
+---
 
-### Review pull requests from forks
+## 🖥️ Local Development
 
-To review PRs from forks, update your workflow to use `pull_request_target` instead of `pull_request`. Note the security implications and ensure you check out the correct commit.
+### Environment Setup
 
-```yaml
-on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+1. Copy environment template:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in your credentials in `.env`:
+   ```
+   OPENAI_API_KEY=sk-your-key
+   MONGODB_URI=mongodb://localhost:27017/ai-reviewer
+   ```
+
+### Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Build TypeScript
+npm run build
+
+# Bundle for GitHub Actions
+npm run package
+
+# Run tests
+npm test
+
+# Test MongoDB connection
+npm run test:connection
 ```
 
-### Disclaimer
+---
 
-- **Data Usage**: Your code (files, diff, PR title/description) will be sent to OpenAI's servers.
-- **Independence**: This action is not affiliated with OpenAI.
+## 🔐 Security & Privacy
 
-## Local Development & Verification
+- **Data Sent to OpenAI**: File diffs, PR titles/descriptions, and relevant code
+  context
+- **No Affiliation**: This action is not affiliated with OpenAI
+- **MongoDB Storage**: If configured, review data is stored in your database
 
-To run and verify the codebase locally (especially for Windows users):
+---
 
-1.  **Environment Setup**:
-    Copy `.env.example` to `.env` and fill in your credentials:
-    ```bash
-    cp .env.example .env
-    ```
-    *   `MONGODB_URI`: Connection string for your local or remote MongoDB.
-    *   `OPENAI_API_KEY`: Your OpenAI API Key.
+## 📋 PR Output Example
 
-2.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
+When the bot reviews a PR, it generates:
 
-3.  **Verify MongoDB Connection**:
-    Run the included test script to verify your MongoDB connection and read/write permissions:
-    ```bash
-    npm run test:connection
-    ```
-    This script will:
-    - Connect to the database using `MONGODB_URI`.
-    - Create a dummy review document.
-    - Read the document back.
-    - Clean up (delete) the document.
+### 1. Summary Comment
 
-4.  **Run Tests**:
-    ```bash
-    npm test
-    ```
+- Walkthrough of changes
+- Table of modified files
+- Fun poem celebrating the changes
 
+### 2. Automated Checks Table
+
+| Check            | Status | Details                     |
+| ---------------- | ------ | --------------------------- |
+| PR Title         | ✅/❌  | Conventional Commits format |
+| Description      | ✅/❌  | Sufficient detail check     |
+| Test Coverage    | ✅/⚠️  | Test files modified         |
+| Security         | ✅/🔴  | High priority issues found  |
+| Pattern Analysis | ✅/🟡  | Total analyzer issues       |
+
+### 3. Line-by-Line Comments
+
+Specific suggestions on code changes, directly on the diff.
+
+---
+
+## 📄 License
+
+MIT License - See [LICENSE](./LICENSE)
+
+---
+
+## 🙏 Credits
+
+Originally forked from
+[CodeRabbit OSS](https://github.com/coderabbitai/openai-pr-reviewer),
+extensively modified with:
+
+- Pattern-based analyzers
+- MongoDB integration
+- Custom branding
+- Enhanced automated checks

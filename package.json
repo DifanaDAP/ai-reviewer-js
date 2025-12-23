@@ -1,8 +1,8 @@
 {
-  "name": "openai-pr-reviewer",
-  "version": "0.0.0",
+  "name": "ai-pr-reviewer",
+  "version": "2.0.0",
   "private": true,
-  "description": "OpenAI-based PR Reviewer and Summarizer.",
+  "description": "AI-based PR Reviewer and Summarizer with Pattern-Based Analyzers and MongoDB Integration.",
   "main": "lib/main.js",
   "scripts": {
     "build": "copy node_modules\\@dqbd\\tiktoken\\tiktoken_bg.wasm dist\\tiktoken_bg.wasm && tsc",
@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fluxninja/openai-pr-reviewer.git"
+    "url": "git+https://github.com/DifanaDAP/ai-reviewer-js.git"
   },
   "keywords": [
     "actions",
