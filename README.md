@@ -69,9 +69,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
-          debug: false
+          debug: true # Set to true to see configuration validation log at startup
           review_simple_changes: false
           review_comment_lgtm: false
+          mongodb_uri: ${{ secrets.MONGODB_URI }} # Optional
+          language: id-ID # Optional: Change response language (e.g., id-ID)
 ```
 
 ### Required Secrets
@@ -156,9 +158,22 @@ Store reviews persistently for tracking and analytics.
      mongodb_uri: ${{ secrets.MONGODB_URI }}
    ```
 
-4. **Verification** - Each PR comment will show:
-   - ✅ **Review saved to MongoDB** - Success
-   - ⚠️ **Failed to save review** - Check connection string
+4. **Verification** - Each PR comment will show a status table:
+   - ✅ **Connected** - Success, history is being saved.
+   - 🔴 **Not connected** - Connection failed. Check logs in GitHub Actions for
+     hints.
+   - ⚪ **Not configured** - MongoDB URI was not provided.
+
+### 🔍 Troubleshooting Connection
+
+If your MongoDB is not connecting, check the **Actions** tab in GitHub. The bot
+now provides helpful hints:
+
+- `💡 Hint: Authentication failed` -> Check your username/password in the URI.
+- `💡 Hint: Cannot resolve hostname` -> Check if your URI/Host is correct.
+- `💡 Hint: Connection timed out` -> Check if your IP is whitelisted in MongoDB
+  Atlas.
+- `💡 Hint: Connection refused` -> Check if MongoDB service is actually running.
 
 ---
 
@@ -240,13 +255,14 @@ When the bot reviews a PR, it generates:
 
 ### 2. Automated Checks Table
 
-| Check            | Status | Details                     |
-| ---------------- | ------ | --------------------------- |
-| PR Title         | ✅/❌  | Conventional Commits format |
-| Description      | ✅/❌  | Sufficient detail check     |
-| Test Coverage    | ✅/⚠️  | Test files modified         |
-| Security         | ✅/🔴  | High priority issues found  |
-| Pattern Analysis | ✅/🟡  | Total analyzer issues       |
+| Check            | Status   | Details                     |
+| ---------------- | -------- | --------------------------- |
+| PR Title         | ✅/❌    | Conventional Commits format |
+| Description      | ✅/❌    | Sufficient detail check     |
+| Test Coverage    | ✅/⚠️    | Test files modified         |
+| Security         | ✅/🔴    | High priority issues found  |
+| Pattern Analysis | ✅/🟡    | Total analyzer issues       |
+| Database         | ✅/🔴/⚪ | MongoDB connection status   |
 
 ### 3. Line-by-Line Comments
 
