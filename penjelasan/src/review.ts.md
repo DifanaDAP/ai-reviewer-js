@@ -55,8 +55,10 @@ Bot melakukan pengecekan otomatis sederhana:
 
 - Apakah judul PR sesuai format Conventional Commits?
 - Apakah deskripsi PR cukup panjang/detail?
-- Apakah ada file test yang diubah (menandakan adanya testing)? Hasilnya
-  ditampilkan dalam tabel status.
+- Apakah ada file test yang diubah (menandakan adanya testing)?
+- **Status Database (Baru!)**: Mengecek apakah koneksi ke MongoDB berhasil atau
+  gagal, dan menampilkannya di tabel status agar user tahu apakah history review
+  tersimpan. Hasilnya ditampilkan dalam tabel status "Automated Checks".
 
 ### 6. Melakukan Review Kode (Deep Review)
 
