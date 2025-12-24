@@ -12,7 +12,7 @@
     "format-check": "prettier --check '**/*.ts'",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
-    "test:connection": "ts-node src/test-connection.ts",
+    "test:connection": "npx tsx src/test-connection.ts",
     "all": "npm run build && npm run format && npm run lint && npm run package && npm test"
   },
   "repository": {
