@@ -3,15 +3,43 @@ import {
   getInput,
   getMultilineInput,
   setFailed,
-  warning
+  warning,
+  info
 } from '@actions/core'
 import { Bot } from './bot'
 import { OpenAIOptions, Options } from './options'
 import { Prompts } from './prompts'
 import { codeReview } from './review'
 import { handleReviewComment } from './review-comment'
+import { 
+  validateConfig, 
+  printConfigStatus, 
+  hasRequiredConfig,
+  ConfigStatus
+} from './config-validator'
+
+// Export config status for use in review
+export let configStatus: ConfigStatus | null = null
 
 async function run(): Promise<void> {
+  info('🚀 AI PR Reviewer Starting...')
+  
+  // Get MongoDB URI early for validation
+  const mongodbUri = getInput('mongodb_uri')
+  
+  // Validate configuration
+  configStatus = validateConfig(mongodbUri)
+  printConfigStatus(configStatus)
+  
+  // Check required configurations
+  const { valid, errors } = hasRequiredConfig()
+  if (!valid) {
+    for (const err of errors) {
+      warning(`⚠️ ${err}`)
+    }
+    // Continue anyway - will fail later when trying to use API
+  }
+
   const options: Options = new Options(
     getBooleanInput('debug'),
     getBooleanInput('disable_review'),

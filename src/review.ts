@@ -17,7 +17,7 @@ import { octokit } from './octokit'
 import { type Options } from './options'
 import { type Prompts } from './prompts'
 import { getTokenCount } from './tokenizer'
-import { connectToDatabase, closeDatabaseConnection } from './db'
+import { connectToDatabase, closeDatabaseConnection, getMongoStatus, isMongoConnected } from './db'
 import Review from './db/models/review'
 import { runAnalyzers, formatAnalyzerResults, countFeedbacksByPriority } from './analyzer-runner'
 import { Priority } from './models/feedback'
@@ -494,6 +494,20 @@ ${filename}: ${summary}
   const hasHighPriorityIssues = feedbackCounts[Priority.HIGH] > 0
   const hasMediumPriorityIssues = feedbackCounts[Priority.MEDIUM] > 0
 
+  // Get MongoDB status for reporting
+  const mongoStatus = getMongoStatus()
+  let mongoStatusIcon = '⚪'  // Not configured
+  let mongoStatusText = 'Not configured (optional)'
+  if (options.mongodbUri) {
+    if (isMongoConnected) {
+      mongoStatusIcon = '✅'
+      mongoStatusText = 'Connected - Review history saved'
+    } else {
+      mongoStatusIcon = '🔴'
+      mongoStatusText = `Not connected: ${mongoStatus.error || 'Unknown error'}`
+    }
+  }
+
   let automatedChecks = `
 ### Automated Checks
 | Check | Status | Details |
@@ -503,6 +517,7 @@ ${filename}: ${summary}
 | **Test Coverage** | ${hasTestChanges ? '✅' : '⚠️'} | ${hasTestChanges ? `Modified ${testFiles.length} test files` : 'No test files modified'} |
 | **Security** | ${hasHighPriorityIssues ? '🔴' : '✅'} | ${feedbackCounts[Priority.HIGH]} high priority issues |
 | **Pattern Analysis** | ${hasMediumPriorityIssues ? '🟡' : '✅'} | ${analyzerFeedbacks.length} total issues found |
+| **Database** | ${mongoStatusIcon} | ${mongoStatusText} |
 
 ${analyzerResults}
 `
