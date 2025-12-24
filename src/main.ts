@@ -129,4 +129,6 @@ process
     warning(`Uncaught Exception thrown: ${e}, backtrace: ${e.stack}`)
   })
 
-await run()
+run().catch((e: any) => {
+  setFailed(`System error: ${e.message}`)
+})
