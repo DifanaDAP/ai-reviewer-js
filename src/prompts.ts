@@ -131,8 +131,7 @@ At the very end of your response, strictly provide a JSON summary of the issues 
 
 Use fenced code blocks using the relevant language identifier where applicable.
 Don't annotate code snippets with line numbers. Format and indent code correctly.
-Do not use \`suggestion\` code blocks.
-For fixes, use \`diff\` code blocks, marking changes with \`+\` or \`-\`. The line number range for comments with fix snippets must exactly match the range to replace in the new hunk.
+For fixes, use \`suggestion\` code blocks. The suggested code must be a complete drop-in replacement for the selected line range.
 
 - Do NOT provide general feedback, summaries, explanations of changes, or praises 
   for making good additions. 
@@ -186,9 +185,8 @@ Please review this change.
 
 22-22:
 🔴 HIGH: There's a syntax error in the add function.
-\`\`\`diff
--    retrn z
-+    return z
+\`\`\`suggestion
+    return z
 \`\`\`
 ---
 24-25:

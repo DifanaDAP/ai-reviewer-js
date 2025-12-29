@@ -13,6 +13,8 @@ history.
 - **PR Summarization** - Auto-generates summary and release notes for every PR
 - **Line-by-line Code Review** - AI provides specific suggestions on code
   changes
+- **Apply Changes** - One-click code application using GitHub's "Commit
+  suggestion" feature
 - **Incremental Reviews** - Reviews are performed on each commit, saving tokens
   and reducing noise
 - **Chat with Bot** - Reply to bot comments to ask follow-up questions
