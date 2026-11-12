@@ -12,6 +12,16 @@ inputs:
   mongodb_uri:
     required: false
     description: 'MongoDB URI for storing review history'
+  ingest_url:
+    required: false
+    description:
+      'HTTPS endpoint that stores the review result in your own backend (e.g.
+      https://your-app.example/api/webhooks/code-review). Preferred over
+      mongodb_uri.'
+  ingest_token:
+    required: false
+    description:
+      'Bearer token sent as Authorization header to the ingest endpoint'
   max_files:
     required: false
     description:
@@ -154,12 +164,15 @@ inputs:
   openai_light_model:
     required: false
     description:
-      'Model to use for simple tasks like summarizing diff on a file.'
-    default: 'gpt-3.5-turbo'
+      'Model to use for simple tasks like summarizing diff on a file. Any
+      OpenAI-compatible slug works when openai_base_url is set.'
+    default: 'gpt-6-luna'
   openai_heavy_model:
     required: false
-    description: 'Model to use for complex tasks such as code reviews.'
-    default: 'gpt-4'
+    description:
+      'Model to use for complex tasks such as code reviews. Any
+      OpenAI-compatible slug works when openai_base_url is set.'
+    default: 'gpt-6.1-sol'
   openai_model_temperature:
     required: false
     description: 'Temperature for GPT model'

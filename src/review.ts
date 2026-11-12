@@ -1,8 +1,8 @@
-import { error, info, warning } from '@actions/core'
+import {error, info, warning} from '@actions/core'
 // eslint-disable-next-line camelcase
-import { context as github_context } from '@actions/github'
+import {context as github_context} from '@actions/github'
 import pLimit from 'p-limit'
-import { type Bot } from './bot'
+import {type Bot} from './bot'
 import {
   Commenter,
   COMMENT_REPLY_TAG,
@@ -12,15 +12,25 @@ import {
   SHORT_SUMMARY_START_TAG,
   SUMMARIZE_TAG
 } from './commenter'
-import { Inputs } from './inputs'
-import { octokit } from './octokit'
-import { type Options } from './options'
-import { type Prompts } from './prompts'
-import { getTokenCount } from './tokenizer'
-import { connectToDatabase, closeDatabaseConnection, getMongoStatus, isMongoConnected } from './db'
+import {Inputs} from './inputs'
+import {octokit} from './octokit'
+import {type Options} from './options'
+import {type Prompts} from './prompts'
+import {getTokenCount} from './tokenizer'
+import {
+  connectToDatabase,
+  closeDatabaseConnection,
+  getMongoStatus,
+  mongoState
+} from './db'
 import Review from './db/models/review'
-import { runAnalyzers, formatAnalyzerResults, countFeedbacksByPriority } from './analyzer-runner'
-import { Priority } from './models/feedback'
+import {sendReviewToIngest} from './ingest'
+import {
+  runAnalyzers,
+  formatAnalyzerResults,
+  countFeedbacksByPriority
+} from './analyzer-runner'
+import {Priority} from './models/feedback'
 
 // eslint-disable-next-line camelcase
 const context = github_context
@@ -110,7 +120,8 @@ export const codeReview = async (
     highestReviewedCommitId === context.payload.pull_request.head.sha
   ) {
     info(
-      `Will review from the base commit: ${context.payload.pull_request.base.sha as string
+      `Will review from the base commit: ${
+        context.payload.pull_request.base.sha as string
       }`
     )
     highestReviewedCommitId = context.payload.pull_request.base.sha
@@ -212,7 +223,8 @@ export const codeReview = async (
           }
         } catch (e: any) {
           warning(
-            `Failed to get file contents: ${e as string
+            `Failed to get file contents: ${
+              e as string
             }. This is OK if it's a new file.`
           )
         }
@@ -275,11 +287,13 @@ ${hunks.oldHunk}
 
   let statusMsg = `<details>
 <summary>Commits</summary>
-Files that changed from the base of the PR and between ${highestReviewedCommitId} and ${context.payload.pull_request.head.sha
-    } commits.
+Files that changed from the base of the PR and between ${highestReviewedCommitId} and ${
+    context.payload.pull_request.head.sha
+  } commits.
 </details>
-${filesAndChanges.length > 0
-      ? `
+${
+  filesAndChanges.length > 0
+    ? `
 <details>
 <summary>Files selected (${filesAndChanges.length})</summary>
 
@@ -288,10 +302,11 @@ ${filesAndChanges.length > 0
         .join('\n* ')}
 </details>
 `
-      : ''
-    }
-${filterIgnoredFiles.length > 0
-      ? `
+    : ''
+}
+${
+  filterIgnoredFiles.length > 0
+    ? `
 <details>
 <summary>Files ignored due to filter (${filterIgnoredFiles.length})</summary>
 
@@ -299,8 +314,8 @@ ${filterIgnoredFiles.length > 0
 
 </details>
 `
-      : ''
-    }
+    : ''
+}
 `
 
   // update the existing comment with in progress status
@@ -483,12 +498,15 @@ ${filename}: ${summary}
   // Automated Checks
   const prTitle = inputs.title
   const prDescription = inputs.description
-  const titleRegex = /^(feat|fix|docs|style|refactor|perf|test|chore|revert|ci|build|temp)(\(.+\))?: .+/
+  const titleRegex =
+    /^(feat|fix|docs|style|refactor|perf|test|chore|revert|ci|build|temp)(\(.+\))?: .+/
   const isTitleValid = titleRegex.test(prTitle)
   const isDescriptionValid = prDescription.length > 10
 
   const testFilePattern = /(\.test\.|\.spec\.|\/__tests__\/)/
-  const testFiles = filesAndChanges.filter(([filename]) => testFilePattern.test(filename))
+  const testFiles = filesAndChanges.filter(([filename]) =>
+    testFilePattern.test(filename)
+  )
   const hasTestChanges = testFiles.length > 0
 
   const hasHighPriorityIssues = feedbackCounts[Priority.HIGH] > 0
@@ -496,10 +514,10 @@ ${filename}: ${summary}
 
   // Get MongoDB status for reporting
   const mongoStatus = getMongoStatus()
-  let mongoStatusIcon = '⚪'  // Not configured
+  let mongoStatusIcon = '⚪' // Not configured
   let mongoStatusText = 'Not configured (optional)'
   if (options.mongodbUri) {
-    if (isMongoConnected) {
+    if (mongoState.connected) {
       mongoStatusIcon = '✅'
       mongoStatusText = 'Connected - Review history saved'
     } else {
@@ -508,15 +526,27 @@ ${filename}: ${summary}
     }
   }
 
-  let automatedChecks = `
+  const automatedChecks = `
 ### Automated Checks
 | Check | Status | Details |
 | :--- | :--- | :--- |
-| **PR Title** | ${isTitleValid ? '✅' : '❌'} | ${isTitleValid ? 'Valid format' : 'Does not match Conventional Commits'} |
-| **Description** | ${isDescriptionValid ? '✅' : '❌'} | ${isDescriptionValid ? 'Sufficient detail' : 'Too short'} |
-| **Test Coverage** | ${hasTestChanges ? '✅' : '⚠️'} | ${hasTestChanges ? `Modified ${testFiles.length} test files` : 'No test files modified'} |
-| **Security** | ${hasHighPriorityIssues ? '🔴' : '✅'} | ${feedbackCounts[Priority.HIGH]} high priority issues |
-| **Pattern Analysis** | ${hasMediumPriorityIssues ? '🟡' : '✅'} | ${analyzerFeedbacks.length} total issues found |
+| **PR Title** | ${isTitleValid ? '✅' : '❌'} | ${
+    isTitleValid ? 'Valid format' : 'Does not match Conventional Commits'
+  } |
+| **Description** | ${isDescriptionValid ? '✅' : '❌'} | ${
+    isDescriptionValid ? 'Sufficient detail' : 'Too short'
+  } |
+| **Test Coverage** | ${hasTestChanges ? '✅' : '⚠️'} | ${
+    hasTestChanges
+      ? `Modified ${testFiles.length} test files`
+      : 'No test files modified'
+  } |
+| **Security** | ${hasHighPriorityIssues ? '🔴' : '✅'} | ${
+    feedbackCounts[Priority.HIGH]
+  } high priority issues |
+| **Pattern Analysis** | ${hasMediumPriorityIssues ? '🟡' : '✅'} | ${
+    analyzerFeedbacks.length
+  } total issues found |
 | **Database** | ${mongoStatusIcon} | ${mongoStatusText} |
 
 ${analyzerResults}
@@ -533,30 +563,34 @@ ${SHORT_SUMMARY_END_TAG}
 
 `
   statusMsg += `
-${skippedFiles.length > 0
-      ? `
+${
+  skippedFiles.length > 0
+    ? `
 <details>
-<summary>Files not processed due to max files limit (${skippedFiles.length
+<summary>Files not processed due to max files limit (${
+        skippedFiles.length
       })</summary>
 
 * ${skippedFiles.join('\n* ')}
 
 </details>
 `
-      : ''
-    }
-${summariesFailed.length > 0
-      ? `
+    : ''
+}
+${
+  summariesFailed.length > 0
+    ? `
 <details>
-<summary>Files not summarized due to errors (${summariesFailed.length
+<summary>Files not summarized due to errors (${
+        summariesFailed.length
       })</summary>
 
 * ${summariesFailed.join('\n* ')}
 
 </details>
 `
-      : ''
-    }
+    : ''
+}
 `
 
   if (!options.disableReview) {
@@ -581,7 +615,6 @@ ${summariesFailed.length > 0
     const reviewsFailed: string[] = []
     let lgtmCount = 0
     let reviewCount = 0
-
 
     const doReview = async (
       filename: string,
@@ -643,7 +676,8 @@ ${summariesFailed.length > 0
           }
         } catch (e: any) {
           warning(
-            `Failed to get comments: ${e as string}, skipping. backtrace: ${e.stack as string
+            `Failed to get comments: ${e as string}, skipping. backtrace: ${
+              e.stack as string
             }`
           )
         }
@@ -692,8 +726,10 @@ ${commentChain}
           if (jsonMatch) {
             try {
               const analysis = JSON.parse(jsonMatch[1])
-              if (analysis.security) allSecurityIssues.push(...analysis.security)
-              if (analysis.performance) allPerformanceIssues.push(...analysis.performance)
+              if (analysis.security)
+                allSecurityIssues.push(...analysis.security)
+              if (analysis.performance)
+                allPerformanceIssues.push(...analysis.performance)
               if (analysis.style) allCodeStyleIssues.push(...analysis.style)
             } catch (e) {
               warning(`Failed to parse JSON summary for ${filename}: ${e}`)
@@ -731,7 +767,8 @@ ${commentChain}
           }
         } catch (e: any) {
           warning(
-            `Failed to review: ${e as string}, skipping. backtrace: ${e.stack as string
+            `Failed to review: ${e as string}, skipping. backtrace: ${
+              e.stack as string
             }`
           )
           reviewsFailed.push(`${filename} (${e as string})`)
@@ -757,27 +794,30 @@ ${commentChain}
     await Promise.all(reviewPromises)
 
     statusMsg += `
-${reviewsFailed.length > 0
-        ? `<details>
+${
+  reviewsFailed.length > 0
+    ? `<details>
 <summary>Files not reviewed due to errors (${reviewsFailed.length})</summary>
 
 * ${reviewsFailed.join('\n* ')}
 
 </details>
 `
-        : ''
-      }
-${reviewsSkipped.length > 0
-        ? `<details>
-<summary>Files skipped from review due to trivial changes (${reviewsSkipped.length
-        })</summary>
+    : ''
+}
+${
+  reviewsSkipped.length > 0
+    ? `<details>
+<summary>Files skipped from review due to trivial changes (${
+        reviewsSkipped.length
+      })</summary>
 
 * ${reviewsSkipped.join('\n* ')}
 
 </details>
 `
-        : ''
-      }
+    : ''
+}
 <details>
 <summary>Review comments generated (${reviewCount + lgtmCount})</summary>
 
@@ -819,6 +859,28 @@ ${reviewsSkipped.length > 0
   }
 
   let dbStatus = ''
+  if (options.ingestUrl !== '' && options.ingestToken !== '') {
+    const delivered = await sendReviewToIngest(
+      options.ingestUrl,
+      options.ingestToken,
+      {
+        repoOwner: repo.owner,
+        repoName: repo.repo,
+        prNumber: context.payload.pull_request.number,
+        commitId: commits[commits.length - 1].sha,
+        summary: inputs.rawSummary,
+        securityIssues: allSecurityIssues,
+        performanceIssues: allPerformanceIssues,
+        codeStyleIssues: allCodeStyleIssues,
+        feedbacks: analyzerFeedbacks,
+        lightModel: options.openaiLightModel,
+        heavyModel: options.openaiHeavyModel
+      }
+    )
+    dbStatus = delivered
+      ? '\n\n✅ **Review delivered to ingest endpoint**'
+      : '\n\n⚠️ **Failed to deliver review to ingest endpoint (see action logs)**'
+  }
   if (options.mongodbUri) {
     try {
       const reviewDoc = new Review({
@@ -834,16 +896,20 @@ ${reviewsSkipped.length > 0
       })
       await reviewDoc.save()
       info('Review saved to MongoDB')
-      dbStatus = '\n\n✅ **Review saved to MongoDB**'
+      dbStatus += '\n\n✅ **Review saved to MongoDB**'
       await closeDatabaseConnection()
     } catch (e: any) {
       warning(`Failed to save review to MongoDB: ${e.message}`)
-      dbStatus = `\n\n⚠️ **Failed to save review to MongoDB**: ${e.message}`
+      dbStatus += `\n\n⚠️ **Failed to save review to MongoDB**: ${e.message}`
     }
   }
 
   // post the final summary comment
-  await commenter.comment(`${summarizeComment}${dbStatus}`, SUMMARIZE_TAG, 'replace')
+  await commenter.comment(
+    `${summarizeComment}${dbStatus}`,
+    SUMMARIZE_TAG,
+    'replace'
+  )
 }
 
 const splitPatch = (patch: string | null | undefined): string[] => {
@@ -873,8 +939,8 @@ const splitPatch = (patch: string | null | undefined): string[] => {
 const patchStartEndLine = (
   patch: string
 ): {
-  oldHunk: { startLine: number; endLine: number }
-  newHunk: { startLine: number; endLine: number }
+  oldHunk: {startLine: number; endLine: number}
+  newHunk: {startLine: number; endLine: number}
 } | null => {
   const pattern = /(^@@ -(\d+),(\d+) \+(\d+),(\d+) @@)/gm
   const match = pattern.exec(patch)
@@ -900,7 +966,7 @@ const patchStartEndLine = (
 
 const parsePatch = (
   patch: string
-): { oldHunk: string; newHunk: string } | null => {
+): {oldHunk: string; newHunk: string} | null => {
   const hunkInfo = patchStartEndLine(patch)
   if (hunkInfo == null) {
     return null
@@ -954,7 +1020,7 @@ const parsePatch = (
   }
 }
 
-interface Review {
+interface HunkReview {
   startLine: number
   endLine: number
   comment: string
@@ -964,8 +1030,8 @@ function parseReview(
   response: string,
   patches: Array<[number, number, string]>,
   debug = false
-): Review[] {
-  const reviews: Review[] = []
+): HunkReview[] {
+  const reviews: HunkReview[] = []
 
   response = sanitizeResponse(response.trim())
 
@@ -978,7 +1044,7 @@ function parseReview(
   let currentComment = ''
   function storeReview(): void {
     if (currentStartLine !== null && currentEndLine !== null) {
-      const review: Review = {
+      const review: HunkReview = {
         startLine: currentStartLine,
         endLine: currentEndLine,
         comment: currentComment
@@ -1061,9 +1127,9 @@ ${review.comment}`
       codeBlockStartIndex = comment.indexOf(
         codeBlockStart,
         codeBlockStartIndex +
-        codeBlockStart.length +
-        sanitizedBlock.length +
-        codeBlockEnd.length
+          codeBlockStart.length +
+          sanitizedBlock.length +
+          codeBlockEnd.length
       )
     }
 

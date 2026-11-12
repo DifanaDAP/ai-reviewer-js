@@ -1,14 +1,6 @@
-
-
-import {info, setFailed, warning} from '@actions/core'
-import {
-  ChatGPTAPI,
-  ChatGPTError,
-  ChatMessage,
-  SendMessageOptions
-  // eslint-disable-next-line import/no-unresolved
-} from 'chatgpt'
-import pRetry from 'p-retry'
+import {info, warning} from '@actions/core'
+import OpenAI from 'openai'
+import type {ChatCompletionMessageParam} from 'openai/resources/chat/completions'
 import {OpenAIOptions, Options} from './options'
 
 // define type to save parentMessageId and conversationId
@@ -17,112 +9,99 @@ export interface Ids {
   conversationId?: string
 }
 
+// Conversation threads keyed by the completion id that ended the previous
+// exchange. The deprecated `chatgpt` library kept this state internally; with
+// the raw SDK we track it ourselves for the lifetime of the action run.
+const MAX_THREADS = 200
+
 export class Bot {
-  private readonly api: ChatGPTAPI | null = null // not free
+  private readonly client: OpenAI
+
+  private readonly model: string
 
   private readonly options: Options
 
+  private readonly systemMessage: string
+
+  private readonly threads = new Map<string, ChatCompletionMessageParam[]>()
+
   constructor(options: Options, openaiOptions: OpenAIOptions) {
     this.options = options
-    if (process.env.OPENAI_API_KEY) {
-      const currentDate = new Date().toISOString().split('T')[0]
-      const systemMessage = `${options.systemMessage} 
+    this.model = openaiOptions.model
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error(
+        "Unable to initialize the OpenAI API: the 'OPENAI_API_KEY' environment variable is not available"
+      )
+    }
+    const currentDate = new Date().toISOString().split('T')[0]
+    this.systemMessage = `${options.systemMessage}
 Knowledge cutoff: ${openaiOptions.tokenLimits.knowledgeCutOff}
 Current date: ${currentDate}
 
 IMPORTANT: Entire response must be in the language with ISO code: ${options.language}
 `
-
-      this.api = new ChatGPTAPI({
-        apiBaseUrl: options.apiBaseUrl,
-        systemMessage,
-        apiKey: process.env.OPENAI_API_KEY,
-        apiOrg: process.env.OPENAI_API_ORG ?? undefined,
-        debug: options.debug,
-        maxModelTokens: openaiOptions.tokenLimits.maxTokens,
-        maxResponseTokens: openaiOptions.tokenLimits.responseTokens,
-        completionParams: {
-          temperature: options.openaiModelTemperature,
-          model: openaiOptions.model
-        }
-      })
-    } else {
-      const err =
-        "Unable to initialize the OpenAI API, both 'OPENAI_API_KEY' environment variable are not available"
-      throw new Error(err)
-    }
+    this.client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: options.apiBaseUrl,
+      organization: process.env.OPENAI_API_ORG ?? undefined,
+      timeout: options.openaiTimeoutMS,
+      maxRetries: options.openaiRetries
+    })
   }
 
   chat = async (message: string, ids: Ids): Promise<[string, Ids]> => {
-    let res: [string, Ids] = ['', {}]
-    try {
-      res = await this.chat_(message, ids)
-      return res
-    } catch (e: unknown) {
-      if (e instanceof ChatGPTError) {
-        warning(`Failed to chat: ${e}, backtrace: ${e.stack}`)
-      }
-      return res
-    }
-  }
-
-  private readonly chat_ = async (
-    message: string,
-    ids: Ids
-  ): Promise<[string, Ids]> => {
-    // record timing
-    const start = Date.now()
     if (!message) {
       return ['', {}]
     }
 
-    let response: ChatMessage | undefined
+    const start = Date.now()
+    try {
+      const history =
+        ids.parentMessageId != null
+          ? this.threads.get(ids.parentMessageId)
+          : undefined
+      const messages: ChatCompletionMessageParam[] = history ?? [
+        {role: 'system', content: this.systemMessage}
+      ]
+      messages.push({role: 'user', content: message})
 
-    if (this.api != null) {
-      const opts: SendMessageOptions = {
-        timeoutMs: this.options.openaiTimeoutMS
+      const completion = await this.client.chat.completions.create({
+        model: this.model,
+        temperature: this.options.openaiModelTemperature,
+        messages
+      })
+
+      const responseText = completion.choices[0]?.message?.content ?? ''
+      if (this.threads.size >= MAX_THREADS) {
+        const oldest = this.threads.keys().next().value
+        if (oldest != null) this.threads.delete(oldest)
       }
-      if (ids.parentMessageId) {
-        opts.parentMessageId = ids.parentMessageId
-      }
-      try {
-        response = await pRetry(() => this.api!.sendMessage(message, opts), {
-          retries: this.options.openaiRetries
-        })
-      } catch (e: unknown) {
-        if (e instanceof ChatGPTError) {
-          info(
-            `response: ${response}, failed to send message to openai: ${e}, backtrace: ${e.stack}`
-          )
-        }
-      }
+      this.threads.set(completion.id, [
+        ...messages,
+        {role: 'assistant', content: responseText}
+      ])
+
       const end = Date.now()
-      info(`response: ${JSON.stringify(response)}`)
       info(
-        `openai sendMessage (including retries) response time: ${
+        `openai chat completion (model: ${this.model}) response time: ${
           end - start
         } ms`
       )
-    } else {
-      setFailed('The OpenAI API is not initialized')
+      if (this.options.debug) {
+        info(`openai responses: ${responseText}`)
+      }
+      let text = responseText
+      // remove the prefix "with " in the response (kept from upstream behavior)
+      if (text.startsWith('with ')) {
+        text = text.substring(5)
+      }
+      return [
+        text,
+        {parentMessageId: completion.id, conversationId: completion.id}
+      ]
+    } catch (e: unknown) {
+      warning(`Failed to chat with model ${this.model}: ${e}`)
+      return ['', {}]
     }
-    let responseText = ''
-    if (response != null) {
-      responseText = response.text
-    } else {
-      warning('openai response is null')
-    }
-    // remove the prefix "with " in the response
-    if (responseText.startsWith('with ')) {
-      responseText = responseText.substring(5)
-    }
-    if (this.options.debug) {
-      info(`openai responses: ${responseText}`)
-    }
-    const newIds: Ids = {
-      parentMessageId: response?.id,
-      conversationId: response?.conversationId
-    }
-    return [responseText, newIds]
   }
 }

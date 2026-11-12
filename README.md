@@ -74,9 +74,15 @@ jobs:
           debug: true # Set to true to see configuration validation log at startup
           review_simple_changes: false
           review_comment_lgtm: false
-          mongodb_uri: ${{ secrets.MONGODB_URI }} # Optional
           language: id-ID # Optional: Change response language (e.g., id-ID)
+          # Storage (pick one; both are optional):
+          ingest_url: https://your-app.example.com/api/webhooks/code-review
+          ingest_token: ${{ secrets.CODE_REVIEW_INGEST_SECRET }}
+          # mongodb_uri: ${{ secrets.MONGODB_URI }} # Legacy alternative
 ```
+
+Any OpenAI-compatible provider works — set `openai_base_url` plus matching
+`openai_light_model` / `openai_heavy_model` slugs.
 
 ### Required Secrets
 
@@ -139,9 +145,21 @@ ignore:
 
 ---
 
-## 💾 MongoDB Integration (v2)
+## 💾 Review History Storage
 
-Store reviews persistently for tracking and analytics.
+Two optional sinks store every finished review:
+
+### HTTPS Ingest (preferred)
+
+`ingest_url` + `ingest_token` POST the review JSON (repo, PR, commit, summary,
+security/performance/style issues, analyzer feedbacks, models used) to your own
+backend with `Authorization: Bearer <token>`. Your backend stores it — the
+reviewer never talks to a database directly, so nothing needs to be exposed.
+Delivery status is appended to the summary comment (✅/⚠️).
+
+### MongoDB Integration (v2, legacy)
+
+Store review history in MongoDB instead of / in addition to the ingest sink.
 
 ### Setup
 

@@ -1,4 +1,4 @@
-import { info, warning, error } from '@actions/core'
+import {info, warning, error} from '@actions/core'
 
 export interface ConfigStatus {
   openaiApiKey: {
@@ -26,7 +26,9 @@ export interface ConfigStatus {
 export function maskSecret(value: string | undefined, showChars = 4): string {
   if (!value) return '(not set)'
   if (value.length <= showChars * 2) return '***'
-  return `${value.substring(0, showChars)}...${value.substring(value.length - showChars)}`
+  return `${value.substring(0, showChars)}...${value.substring(
+    value.length - showChars
+  )}`
 }
 
 /**
@@ -63,7 +65,7 @@ export function printConfigStatus(status: ConfigStatus): void {
   info('='.repeat(50))
   info('🔧 Configuration Status Report')
   info('='.repeat(50))
-  
+
   // OpenAI API Key
   if (status.openaiApiKey.configured) {
     info(`✅ OPENAI_API_KEY: Configured (${status.openaiApiKey.masked})`)
@@ -99,13 +101,29 @@ export function printConfigStatus(status: ConfigStatus): void {
  * Generate markdown status for PR comment
  */
 export function generateConfigStatusMarkdown(status: ConfigStatus): string {
-  let markdown = `
+  const markdown = `
 ### 🔧 Configuration Status
 | Setting | Status | Details |
 | :--- | :--- | :--- |
-| **OpenAI API Key** | ${status.openaiApiKey.configured ? '✅' : '❌'} | ${status.openaiApiKey.configured ? 'Configured' : 'NOT SET - Required!'} |
-| **GitHub Token** | ${status.githubToken.configured ? '✅' : '❌'} | ${status.githubToken.configured ? 'Configured' : 'NOT SET - Required!'} |
-| **MongoDB URI** | ${status.mongodbUri.configured ? (status.mongodbUri.connected ? '✅' : '🟡') : '⚪'} | ${status.mongodbUri.configured ? (status.mongodbUri.connected ? 'Connected' : 'Configured but NOT CONNECTED') : 'Not configured (optional)'} |
+| **OpenAI API Key** | ${status.openaiApiKey.configured ? '✅' : '❌'} | ${
+    status.openaiApiKey.configured ? 'Configured' : 'NOT SET - Required!'
+  } |
+| **GitHub Token** | ${status.githubToken.configured ? '✅' : '❌'} | ${
+    status.githubToken.configured ? 'Configured' : 'NOT SET - Required!'
+  } |
+| **MongoDB URI** | ${
+    status.mongodbUri.configured
+      ? status.mongodbUri.connected
+        ? '✅'
+        : '🟡'
+      : '⚪'
+  } | ${
+    status.mongodbUri.configured
+      ? status.mongodbUri.connected
+        ? 'Connected'
+        : 'Configured but NOT CONNECTED'
+      : 'Not configured (optional)'
+  } |
 `
   return markdown
 }
@@ -113,15 +131,17 @@ export function generateConfigStatusMarkdown(status: ConfigStatus): string {
 /**
  * Check if all required configurations are present
  */
-export function hasRequiredConfig(): { valid: boolean; errors: string[] } {
+export function hasRequiredConfig(): {valid: boolean; errors: string[]} {
   const errors: string[] = []
-  
+
   if (!process.env.OPENAI_API_KEY) {
     errors.push('OPENAI_API_KEY is not set. This is required for AI review.')
   }
-  
+
   if (!process.env.GITHUB_TOKEN) {
-    errors.push('GITHUB_TOKEN is not set. This is required for GitHub API access.')
+    errors.push(
+      'GITHUB_TOKEN is not set. This is required for GitHub API access.'
+    )
   }
 
   return {

@@ -1,6 +1,6 @@
-import { info } from '@actions/core'
-import { minimatch } from 'minimatch'
-import { TokenLimits } from './limits'
+import {info} from '@actions/core'
+import {minimatch} from 'minimatch'
+import {TokenLimits} from './limits'
 
 export class Options {
   debug: boolean
@@ -24,6 +24,8 @@ export class Options {
   language: string
   mongodbUri: string
   botIcon: string
+  ingestUrl: string
+  ingestToken: string
 
   constructor(
     debug: boolean,
@@ -34,8 +36,8 @@ export class Options {
     reviewCommentLGTM = false,
     pathFilters: string[] | null = null,
     systemMessage = '',
-    openaiLightModel = 'gpt-3.5-turbo',
-    openaiHeavyModel = 'gpt-3.5-turbo',
+    openaiLightModel = 'gpt-6-luna',
+    openaiHeavyModel = 'gpt-6.1-sol',
     openaiModelTemperature = '0.0',
     openaiRetries = '3',
     openaiTimeoutMS = '120000',
@@ -44,7 +46,9 @@ export class Options {
     apiBaseUrl = 'https://api.openai.com/v1',
     language = 'en-US',
     mongodbUri = '',
-    botIcon = ''
+    botIcon = '',
+    ingestUrl = '',
+    ingestToken = ''
   ) {
     this.debug = debug
     this.disableReview = disableReview
@@ -67,6 +71,8 @@ export class Options {
     this.language = language
     this.mongodbUri = mongodbUri
     this.botIcon = botIcon
+    this.ingestUrl = ingestUrl
+    this.ingestToken = ingestToken
   }
 
   // print all options using core.info
@@ -91,6 +97,9 @@ export class Options {
     info(`api_base_url: ${this.apiBaseUrl}`)
     info(`language: ${this.language}`)
     info(`bot_icon: ${this.botIcon}`)
+    info(
+      `ingest_url: ${this.ingestUrl !== '' ? 'configured' : 'not configured'}`
+    )
   }
 
   checkPath(path: string): boolean {

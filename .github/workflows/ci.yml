@@ -1,0 +1,42 @@
+name: CI
+
+# The compiled dist/index.js is committed and consumed by repositories using
+# this action, so every push to main must keep build + tests + lint green.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build, lint, and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build TypeScript
+        run: npm run build
+      - name: Unit tests
+        run: npm test
+      - name: Bundle action (dist)
+        run: npm run package
+      - name: dist is up to date
+        run: |
+          if ! git diff --quiet -- dist; then
+            echo "::error::dist/ is stale — run 'npm run package' and commit the result."
+            git diff --stat -- dist
+            exit 1
+          fi

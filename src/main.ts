@@ -6,33 +6,33 @@ import {
   warning,
   info
 } from '@actions/core'
-import { Bot } from './bot'
-import { OpenAIOptions, Options } from './options'
-import { Prompts } from './prompts'
-import { codeReview } from './review'
-import { handleReviewComment } from './review-comment'
-import { 
-  validateConfig, 
-  printConfigStatus, 
+import {Bot} from './bot'
+import {OpenAIOptions, Options} from './options'
+import {Prompts} from './prompts'
+import {codeReview} from './review'
+import {handleReviewComment} from './review-comment'
+import {
+  validateConfig,
+  printConfigStatus,
   hasRequiredConfig,
   ConfigStatus
 } from './config-validator'
 
-// Export config status for use in review
-export let configStatus: ConfigStatus | null = null
+// Config status from startup validation (read by printConfigStatus below)
+let configStatus: ConfigStatus | null = null
 
 async function run(): Promise<void> {
   info('🚀 AI PR Reviewer Starting...')
-  
+
   // Get MongoDB URI early for validation
   const mongodbUri = getInput('mongodb_uri')
-  
+
   // Validate configuration
   configStatus = validateConfig(mongodbUri)
   printConfigStatus(configStatus)
-  
+
   // Check required configurations
-  const { valid, errors } = hasRequiredConfig()
+  const {valid, errors} = hasRequiredConfig()
   if (!valid) {
     for (const err of errors) {
       warning(`⚠️ ${err}`)
@@ -59,7 +59,9 @@ async function run(): Promise<void> {
     getInput('openai_base_url'),
     getInput('language'),
     getInput('mongodb_uri'),
-    getInput('bot_icon')
+    getInput('bot_icon'),
+    getInput('ingest_url'),
+    getInput('ingest_token')
   )
 
   // print options
@@ -129,6 +131,8 @@ process
     warning(`Uncaught Exception thrown: ${e}, backtrace: ${e.stack}`)
   })
 
+// Top-level entry point: awaiting here is not possible in a CommonJS action.
+// eslint-disable-next-line github/no-then
 run().catch((e: any) => {
   setFailed(`System error: ${e.message}`)
 })
